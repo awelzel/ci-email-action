@@ -111,8 +111,8 @@ print(f'Sending email for unsuccessful check_suite "{ci_app_name}"...')
 repo = payload['repository']
 repo_name = repo['name']
 repo_url = repo['html_url']
-branch = repo['head_branch']
-sha = repo['head_sha']
+branch = check_suite['head_branch']
+sha = check_suite['head_sha']
 short_sha = sha[:8]
 commit_url = f'{repo_url}/commit/{sha}'
 
