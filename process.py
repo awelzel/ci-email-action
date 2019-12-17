@@ -116,6 +116,7 @@ if conclusion == 'success':
     # Check if a previous failure now passes and send an email.
     token = getenv('GITHUB_TOKEN')
     request_url = f"{repo['url']}/commits/{before_sha}/check-runs"
+    # TODO: remove "preview" header once API is stable
     accept_header = 'application/vnd.github.antiope-preview+json'
     authorization_header = f'Bearer {token}'
     headers = {'Authorization': authorization_header, 'Accept': accept_header}
@@ -124,25 +125,32 @@ if conclusion == 'success':
     if response.status_code != 200:
         skip(f'Skip processing successful check_suite: API response: {response.status_code}')
 
-    try:
-        # The checks API is unstable so we treat all exceptions as non-fatal.
-        json = response.json()
-        runs = json['check_runs']
+    def last_passed():
+        try:
+            # The checks API is unstable so treat all exceptions as non-fatal.
+            json = response.json()
+            runs = json['check_runs']
 
-        for run in runs:
-            if run['app']['name'] != ci_app_name:
-                continue
+            for run in runs:
+                if run['app']['name'] != ci_app_name:
+                    continue
 
-            if run['conclusion'] == 'success':
-                skip(f'Skip processing successful check_suite: previous commit passed: {before_sha}')
+                if run['conclusion'] == 'success':
+                    print(f'Skip processing successful check_suite: previous commit passed: {before_sha}')
+                    return True
 
-            print(f'Previous commit {before_sha} was not passing, send success email')
-            break
+                print(f'Previous commit {before_sha} was not passing, send success email')
+                return False
 
-    except:
-        import traceback
-        traceback.print_exc()
-        skip('Skip processing successful check_suite: failed to parse response')
+        except:
+            import traceback
+            traceback.print_exc()
+            print('Skip processing successful check_suite: failed to parse response')
+
+        return True
+
+    if last_passed():
+        skip('Skip process successful check_suite: last check was passing/unknown')
 
 print(f'Sending email for {status} check_suite "{ci_app_name}"...')
 
