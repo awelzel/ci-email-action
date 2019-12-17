@@ -1,0 +1,8 @@
+name: 'CI Email Notification'
+description: 'Send email via SMTP on failed CI check_suite'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+branding:
+  icon: 'alert-triangle'
+  color: 'red'
