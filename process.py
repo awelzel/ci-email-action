@@ -42,8 +42,9 @@ def send_mail(subj, body):
 
 ci_app_name = getenv('CI_APP_NAME')
 event_payload_path = getenv('GITHUB_EVENT_PATH')
+print(f'Event payload path: {event_payload_path}')
 
-print("Sending email...")
+print(f'Sending email regarding {ci_app_name}...')
 
 subject = f'Unsuccessful check suite from {ci_app_name}'
 body = 'Just testing email from the GH action works'
