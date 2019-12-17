@@ -4,7 +4,8 @@ import os
 import sys
 
 def error(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
+    # The GitHub UI seems to order stderr badly, so just use stdout.
+    print(*args, file=sys.stdout, **kwargs)
     sys.exit(1)
 
 def getenv(var):
@@ -39,6 +40,9 @@ def send_mail(subj, body):
     s.login(smtp_user, smtp_pass)
     s.sendmail(mail_from, [mail_to], msg.as_string())
     s.quit()
+
+for k in os.environ:
+    print(f'key: {k}')
 
 ci_app_name = getenv('CI_APP_NAME')
 event_payload_path = getenv('GITHUB_EVENT_PATH')
