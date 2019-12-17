@@ -6,7 +6,7 @@ A GitHub action to send email via SMTP on CI check_suite failures.
 
 - Failures triggered by Pull Requests do not send email.
 
-- The CI App name is configurable, but personally only tests with Cirrus CI.
+- The CI App name is configurable, but have only tested with Cirrus CI.
 
 - The SMTP / mail configuration requires use of secret variables which can be
   set within the GitHub repository settings.
