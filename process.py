@@ -153,7 +153,7 @@ sha = check_suite['head_sha']
 short_sha = sha[:8]
 commit_url = f'{repo_url}/commit/{sha}'
 
-subject = f'[ci/{repo_name}] {ci_app_name}: Failed ({branch} - {short_sha})'
+subject = f'[ci/{repo_name}] {ci_app_name}: {status} ({branch} - {short_sha})'
 body = f'''
 New result from {ci_app_name}: {status}
 
