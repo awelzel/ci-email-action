@@ -6,13 +6,16 @@ import sys
 def error(*args, **kwargs):
     # The GitHub UI seems to order stderr badly, so just use stdout.
     print(*args, file=sys.stdout, **kwargs)
+
+def fatal(*args, **kwargs):
+    error(*args, **kwargs)
     sys.exit(1)
 
 def getenv(var):
     rval = os.environ[var]
 
     if not rval:
-        error(f'Error: environment variable not usable: {var}')
+        fatal(f'Error: environment variable not usable: {var}')
 
     return rval
 
@@ -21,14 +24,13 @@ def check_env(*keys):
 
     for k in keys:
         if k not in os.environ:
-            print(f'Error: environment variable not set: {k}')
+            error(f'Error: environment variable not set: {k}')
 
         if not os.environ[k]:
-            print(f'Error: environment variable with no value: {k}')
+            error(f'Error: environment variable with no value: {k}')
 
     if err:
-        error(f'Error: required environment variables are not available')
-        sys.exit(1)
+        fatal(f'Error: required environment variables are not available')
 
 def send_mail(subj, body):
     import smtplib
