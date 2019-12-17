@@ -16,10 +16,10 @@ jobs:
         uses: jsiwek/ci-email-action@master
         env:
           CI_APP_NAME: "Cirrus CI"
-          SMTP_HOST: ${{ secrets.MAIL_HOST }}
-          SMTP_PORT: ${{ secrets.MAIL_PORT }}
-          SMTP_USER: ${{ secrets.MAIL_USER }}
-          SMTP_PASS: ${{ secrets.MAIL_PASS }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
 ```
