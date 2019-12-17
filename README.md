@@ -1,7 +1,17 @@
 # ci-email-action
-GitHub action to send email via SMTP on CI check_suite failure
+A GitHub action to send email via SMTP on CI check_suite failures.
 
-Example workflow:
+- Passing runs also attempt to check if the last run was a failure, and if so,
+  sends a "now passing" email.
+
+- Failures triggered by Pull Requests do not send email.
+
+- The CI App name is configurable, but personally only tests with Cirrus CI.
+
+- The SMTP / mail configuration requires use of secret variables which can be
+  set within the GitHub repository settings.
+
+Example workflow config:
 
 ```
 name: CI Email Notification
@@ -22,7 +32,5 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
-
-TODO: maintain this repo in zeek org?
-TODO: publish this action?
