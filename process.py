@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+import requests
 
 def error(*args, **kwargs):
     # The GitHub UI seems to order stderr badly, so just use stdout.
@@ -33,7 +34,7 @@ def check_env(*keys):
             err = True
             error(f'Error: environment variable with no value: {k}')
 
-        print(f'Found usable environment variable: {k}')
+        # print(f'Found usable environment variable: {k}')
 
     if err:
         fatal(f'Error: required environment variables are not available')
@@ -68,6 +69,7 @@ def skip(msg):
     sys.exit(0)
 
 check_env('GITHUB_EVENT_PATH',
+          'GITHUB_TOKEN',
           'CI_APP_NAME',
           'SMTP_HOST',
           'SMTP_PORT',
@@ -90,6 +92,7 @@ if payload['action'] != 'completed':
     skip(f"Skip processing check_suite action type: {payload['action']}")
 
 check_suite = payload['check_suite']
+repo = payload['repository']
 app = check_suite['app']
 
 if app['name'] != ci_app_name:
@@ -101,14 +104,48 @@ if pull_requests:
     skip('Skip processing check_suite triggered via Pull Request')
 
 conclusion = check_suite['conclusion']
+status = 'Failed'
 
 if conclusion == 'success':
-    # TODO: send mail if the last commit didn't have a successful conclusion
-    skip('Skip processing successful check_suite')
+    status = 'Passed'
+    before_sha = check_suite['before']
 
-print(f'Sending email for unsuccessful check_suite "{ci_app_name}"...')
+    if not before_sha:
+        skip('Skip processing successful check_suite, no previous commit')
 
-repo = payload['repository']
+    # Check if a previous failure now passes and send an email.
+    token = getenv('GITHUB_TOKEN')
+    request_url = f"{repo['url']}/commits/{before_sha}/check-runs"
+    accept_header = 'application/vnd.github.antiope-preview+json'
+    authorization_header = f'Bearer {token}'
+    headers = {'Authorization': authorization_header, 'Accept': accept_header}
+    response = requests.get(request_url, headers=headers)
+
+    if response.status_code != 200:
+        skip(f'Skip processing successful check_suite: API response: {response.status_code}')
+
+    try:
+        # The checks API is unstable so we treat all exceptions as non-fatal.
+        json = response.json()
+        runs = json['check_runs']
+
+        for run in runs:
+            if run['app']['name'] != ci_app_name:
+                continue
+
+            if run['conclusion'] == 'success':
+                skip(f'Skip processing successful check_suite: previous commit passed: {before_sha}')
+
+            print(f'Previous commit {before_sha} was not passing, send success email')
+            break
+
+    except:
+        import traceback
+        traceback.print_exc()
+        skip('Skip processing successful check_suite: failed to parse response')
+
+print(f'Sending email for {status} check_suite "{ci_app_name}"...')
+
 repo_name = repo['name']
 repo_url = repo['html_url']
 branch = check_suite['head_branch']
@@ -118,11 +155,11 @@ commit_url = f'{repo_url}/commit/{sha}'
 
 subject = f'[ci/{repo_name}] {ci_app_name}: Failed ({branch} - {short_sha})'
 body = f'''
-Unsuccessful result from CI:
+New result from {ci_app_name}: {status}
 
     repo: {repo_url}
-    branch: {branch}
     commit: {commit_url}
+    branch: {branch}
 '''
 
 send_mail(subject, body)
