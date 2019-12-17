@@ -32,6 +32,8 @@ def check_env(*keys):
             err = True
             error(f'Error: environment variable with no value: {k}')
 
+        print(f'Found usable environment variable: {k}')
+
     if err:
         fatal(f'Error: required environment variables are not available')
 
