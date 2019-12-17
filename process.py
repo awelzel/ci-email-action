@@ -15,23 +15,20 @@ def getenv(var):
 
     return rval
 
-def send_mail(msg):
+def send_mail(subj, body):
     import smtplib
     from email.mime.text import MIMEText
 
+    smtp_timeout = 30
     smtp_host = getenv('SMTP_HOST')
     smtp_port = getenv('SMTP_PORT')
     smtp_user = getenv('SMTP_USER')
     smtp_pass = getenv('SMTP_PASS')
-    smtp_timeout = 30
-
     mail_from = getenv('MAIL_FROM')
     mail_to   = getenv('MAIL_TO')
 
-    ci_app_name = getenv('CI_APP_NAME')
-
-    msg  = MIMEText(msg)
-    msg['Subject'] = f'Unsuccessful check suite from {ci_app_name}'
+    msg = MIMEText(body)
+    msg['Subject'] = subj
     msg['From'] = mail_from
     msg['To'] = mail_to
 
@@ -43,5 +40,12 @@ def send_mail(msg):
     s.sendmail(mail_from, [mail_to], msg.as_string())
     s.quit()
 
+ci_app_name = getenv('CI_APP_NAME')
+event_payload_path = getenv('GITHUB_EVENT_PATH')
+
 print("Sending email...")
-send_mail("Just testing email from the GH action works")
+
+subject = f'Unsuccessful check suite from {ci_app_name}'
+body = 'Just testing email from the GH action works'
+
+send_mail(subject, body)
