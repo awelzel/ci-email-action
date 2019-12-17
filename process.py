@@ -24,9 +24,12 @@ def check_env(*keys):
 
     for k in keys:
         if k not in os.environ:
+            err = True
             error(f'Error: environment variable not set: {k}')
+            continue
 
         if not os.environ[k]:
+            err = True
             error(f'Error: environment variable with no value: {k}')
 
     if err:
