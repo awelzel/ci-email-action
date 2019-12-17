@@ -12,21 +12,29 @@ def getenv(var):
     rval = os.environ[var]
 
     if not rval:
-        error(f'Error: environment variable not set: {var}')
+        error(f'Error: environment variable not usable: {var}')
 
     return rval
+
+def check_env(*keys):
+    for k in keys:
+        if k not in os.environ:
+            error(f'Error: environment variable not set: {k}')
+
+        if not os.environ[k]:
+            error(f'Error: environment variable with no value: {k}')
 
 def send_mail(subj, body):
     import smtplib
     from email.mime.text import MIMEText
 
     smtp_timeout = 30
-    mail_from = getenv('MAIL_FROM')
-    mail_to   = getenv('MAIL_TO')
     smtp_host = getenv('SMTP_HOST')
     smtp_port = getenv('SMTP_PORT')
     smtp_user = getenv('SMTP_USER')
     smtp_pass = getenv('SMTP_PASS')
+    mail_from = getenv('MAIL_FROM')
+    mail_to   = getenv('MAIL_TO')
 
     msg = MIMEText(body)
     msg['Subject'] = subj
@@ -41,8 +49,15 @@ def send_mail(subj, body):
     s.sendmail(mail_from, [mail_to], msg.as_string())
     s.quit()
 
-for k in os.environ:
-    print(f'key: {k}')
+check_env('GITHUB_EVENT_PATH',
+          'CI_APP_NAME',
+          'SMTP_HOST',
+          'SMTP_PORT',
+          'SMTP_USER',
+          'SMTP_PASS',
+          'MAIL_FROM',
+          'MAIL_TO'
+          )
 
 ci_app_name = getenv('CI_APP_NAME')
 event_payload_path = getenv('GITHUB_EVENT_PATH')
