@@ -17,12 +17,18 @@ def getenv(var):
     return rval
 
 def check_env(*keys):
+    err = False
+
     for k in keys:
         if k not in os.environ:
-            error(f'Error: environment variable not set: {k}')
+            print(f'Error: environment variable not set: {k}')
 
         if not os.environ[k]:
-            error(f'Error: environment variable with no value: {k}')
+            print(f'Error: environment variable with no value: {k}')
+
+    if err:
+        error(f'Error: required environment variables are not available')
+        sys.exit(1)
 
 def send_mail(subj, body):
     import smtplib
