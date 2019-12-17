@@ -2,6 +2,7 @@
 
 import os
 import sys
+import json
 
 def error(*args, **kwargs):
     # The GitHub UI seems to order stderr badly, so just use stdout.
@@ -62,6 +63,10 @@ def send_mail(subj, body):
     s.sendmail(mail_from, [mail_to], msg.as_string())
     s.quit()
 
+def skip(msg):
+    print(msg)
+    sys.exit(0)
+
 check_env('GITHUB_EVENT_PATH',
           'CI_APP_NAME',
           'SMTP_HOST',
@@ -74,11 +79,50 @@ check_env('GITHUB_EVENT_PATH',
 
 ci_app_name = getenv('CI_APP_NAME')
 event_payload_path = getenv('GITHUB_EVENT_PATH')
-print(f'Event payload path: {event_payload_path}')
 
-print(f'Sending email regarding {ci_app_name}...')
+with open(event_payload_path) as epp:
+    payload = json.load(epp)
 
-subject = f'Unsuccessful check suite from {ci_app_name}'
-body = 'Just testing email from the GH action works'
+if 'check_suite' not in payload:
+    skip('Skip processing non-check_suite action')
+
+if payload['action'] != 'completed':
+    skip(f"Skip processing check_suite action type: {payload['action']}")
+
+check_suite = payload['check_suite']
+app = check_suite['app']
+
+if app['name'] != ci_app_name:
+    skip(f"Skip processing check_suite for app: {app['name']}")
+
+pull_requests = check_suite['pull_requests']
+
+if pull_requests:
+    skip('Skip processing check_suite triggered via Pull Request')
+
+conclusion = check_suite['conclusion']
+
+if conclusion == 'success':
+    # TODO: send mail if the last commit didn't have a successful conclusion
+    skip('Skip processing successful check_suite')
+
+print(f'Sending email for unsuccessful check_suite "{ci_app_name}"...')
+
+repo = payload['repository']
+repo_name = repo['name']
+repo_url = repo['html_url']
+branch = repo['head_branch']
+sha = repo['head_sha']
+short_sha = sha[:8]
+commit_url = f'{repo_url}/commit/{sha}'
+
+subject = f'[ci/{repo_name}] {ci_app_name}: Failed ({branch} - {short_sha})'
+body = f'''
+Unsuccessful result from CI:
+
+    repo: {repo_url}
+    branch: {branch}
+    commit: {commit_url}
+'''
 
 send_mail(subject, body)
