@@ -21,12 +21,12 @@ def send_mail(subj, body):
     from email.mime.text import MIMEText
 
     smtp_timeout = 30
+    mail_from = getenv('MAIL_FROM')
+    mail_to   = getenv('MAIL_TO')
     smtp_host = getenv('SMTP_HOST')
     smtp_port = getenv('SMTP_PORT')
     smtp_user = getenv('SMTP_USER')
     smtp_pass = getenv('SMTP_PASS')
-    mail_from = getenv('MAIL_FROM')
-    mail_to   = getenv('MAIL_TO')
 
     msg = MIMEText(body)
     msg['Subject'] = subj
