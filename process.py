@@ -13,6 +13,12 @@ def fatal(*args, **kwargs):
     error(*args, **kwargs)
     sys.exit(1)
 
+def optenv(var):
+    if var in os.environ:
+        return os.environ[var]
+
+    return ''
+
 def getenv(var):
     rval = os.environ[var]
 
@@ -50,11 +56,15 @@ def send_mail(subj, body):
     smtp_pass = getenv('SMTP_PASS')
     mail_from = getenv('MAIL_FROM')
     mail_to   = getenv('MAIL_TO')
+    mail_reply_to = optenv('MAIL_REPLY_TO')
 
     msg = MIMEText(body)
     msg['Subject'] = subj
     msg['From'] = mail_from
     msg['To'] = mail_to
+
+    if mail_reply_to:
+        msg['Reply-To'] = mail_reply_to
 
     s = smtplib.SMTP(host=smtp_host, port=smtp_port, timeout=smtp_timeout)
     s.ehlo()

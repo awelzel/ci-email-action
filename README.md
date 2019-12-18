@@ -32,5 +32,9 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
+          MAIL_REPLY_TO: ${{ secrets.MAIL_REPLY_TO }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+Except for `MAIL_REPLY_TO`, all environment variables shown in that example
+are required.
