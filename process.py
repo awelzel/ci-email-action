@@ -113,6 +113,12 @@ pull_requests = check_suite['pull_requests']
 if pull_requests:
     skip('Skip processing check_suite triggered via Pull Request')
 
+# Docs at https://developer.github.com/v3/checks/suites/ seem to indicate
+# that 'pull_requests' will also be empty for checks that run on PRs coming
+# from forked repos.  But in that case, 'head_branch' is null.
+if not check_suite['head_branch']:
+    skip('Skip processing check_suite triggered via Pull Request (from fork)')
+
 conclusion = check_suite['conclusion']
 status = 'Failed'
 
