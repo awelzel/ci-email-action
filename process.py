@@ -167,21 +167,22 @@ branch = check_suite['head_branch']
 sha = check_suite['head_sha']
 short_sha = sha[:8]
 commit_url = f'{repo_url}/commit/{sha}'
+commit_msg = check_suite['head_commit']['message']
 
 subject = f'[ci/{repo_name}] {ci_app_name}: Failed ({branch} - {short_sha})'
 body = f'''
-{ci_app_name} failure:
-
-    repo: {repo_url}
-    commit: {commit_url}
-    branch: {branch}
+{ci_app_name} conclusion: {conclusion}
+repo: {repo_url}
+branch: {branch}
+commit: {commit_url}
+message: {commit_msg}
 
 '''
 
 if failed_check_urls:
-    body += '    failed tasks:\n'
+    body += 'failures:\n'
 
-for task_name, url in failed_check_urls.items():
-    body += f'        {task_name}: {url}\n'
+for name, url in failed_check_urls.items():
+    body += f'    {name}: {url}\n'
 
 send_mail(subject, body)
