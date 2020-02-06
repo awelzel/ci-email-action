@@ -1,9 +1,6 @@
 # ci-email-action
 A GitHub action to send email via SMTP on CI check_suite failures.
 
-- Passing runs also attempt to check if the last run was a failure, and if so,
-  sends a "now passing" email.
-
 - Failures triggered by Pull Requests do not send email.
 
 - The CI App name is configurable, but have only tested with Cirrus CI.

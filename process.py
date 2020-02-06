@@ -78,6 +78,15 @@ def skip(msg):
     print(msg)
     sys.exit(0)
 
+def api_request(request_url):
+    token = getenv('GITHUB_TOKEN')
+    # TODO: remove "preview" header once API is stable
+    accept_header = 'application/vnd.github.antiope-preview+json'
+    authorization_header = f'Bearer {token}'
+    headers = {'Authorization': authorization_header, 'Accept': accept_header}
+    response = requests.get(request_url, headers=headers)
+    return response
+
 check_env('GITHUB_EVENT_PATH',
           'GITHUB_TOKEN',
           'CI_APP_NAME',
@@ -120,55 +129,34 @@ if not check_suite['head_branch']:
     skip('Skip processing check_suite triggered via Pull Request (from fork)')
 
 conclusion = check_suite['conclusion']
-status = 'Failed'
 
 if conclusion == 'success':
-    status = 'Passed'
-    before_sha = check_suite['before']
+    skip('Skip processing successful check_suite')
 
-    if not before_sha:
-        skip('Skip processing successful check_suite, no previous commit')
+check_runs_url = check_suite['check_runs_url']
+check_runs_response = api_request(check_runs_url)
+failed_check_urls = dict()
 
-    # Check if a previous failure now passes and send an email.
-    token = getenv('GITHUB_TOKEN')
-    request_url = f"{repo['url']}/commits/{before_sha}/check-runs"
-    # TODO: remove "preview" header once API is stable
-    accept_header = 'application/vnd.github.antiope-preview+json'
-    authorization_header = f'Bearer {token}'
-    headers = {'Authorization': authorization_header, 'Accept': accept_header}
-    response = requests.get(request_url, headers=headers)
+if check_runs_response.status_code == 200:
+    try:
+        json = check_runs_response.json()
+        runs = json['check_runs']
 
-    if response.status_code != 200:
-        skip(f'Skip processing successful check_suite: API response: {response.status_code}')
+        for run in runs:
+            if run['app']['name'] != ci_app_name:
+                continue
 
-    def last_passed():
-        try:
-            # The checks API is unstable so treat all exceptions as non-fatal.
-            json = response.json()
-            runs = json['check_runs']
+            if run['conclusion'] == 'success':
+                continue
 
-            for run in runs:
-                if run['app']['name'] != ci_app_name:
-                    continue
+            failed_check_urls[run['name']] = run['html_url']
 
-                if run['conclusion'] == 'success':
-                    print(f'Skip processing successful check_suite: previous commit passed: {before_sha}')
-                    return True
+    except:
+        import traceback
+        traceback.print_exc()
+        print('Skip processing check_runs: failed to parse response')
 
-                print(f'Previous commit {before_sha} was not passing, send success email')
-                return False
-
-        except:
-            import traceback
-            traceback.print_exc()
-            print('Skip processing successful check_suite: failed to parse response')
-
-        return True
-
-    if last_passed():
-        skip('Skip process successful check_suite: last check was passing/unknown')
-
-print(f'Sending email for {status} check_suite "{ci_app_name}"...')
+print(f'Sending email for failed check_suite "{ci_app_name}"...')
 
 repo_name = repo['name']
 repo_url = repo['html_url']
@@ -177,13 +165,20 @@ sha = check_suite['head_sha']
 short_sha = sha[:8]
 commit_url = f'{repo_url}/commit/{sha}'
 
-subject = f'[ci/{repo_name}] {ci_app_name}: {status} ({branch} - {short_sha})'
+subject = f'[ci/{repo_name}] {ci_app_name}: Failed ({branch} - {short_sha})'
 body = f'''
-New result from {ci_app_name}: {status}
+{ci_app_name} failure:
 
     repo: {repo_url}
     commit: {commit_url}
     branch: {branch}
+
 '''
+
+if failed_check_urls:
+    body += '    failed tasks:\n'
+
+for task_name, url in failed_check_urls.items():
+    body += f'        {task_name}: {url}\n'
 
 send_mail(subject, body)
