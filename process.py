@@ -133,6 +133,9 @@ conclusion = check_suite['conclusion']
 if conclusion == 'success':
     skip('Skip processing successful check_suite')
 
+if conclusion == 'cancelled':
+    skip('Skip processing cancelled check_suite')
+
 check_runs_url = check_suite['check_runs_url']
 check_runs_response = api_request(check_runs_url)
 failed_check_urls = dict()
