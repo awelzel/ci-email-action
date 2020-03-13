@@ -23,6 +23,7 @@ jobs:
         uses: jsiwek/ci-email-action@master
         env:
           CI_APP_NAME: "Cirrus CI"
+          BRANCH_WHITELIST: "master|release/.*"
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -33,5 +34,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-Except for `MAIL_REPLY_TO`, all environment variables shown in that example
-are required.
+Except for `MAIL_REPLY_TO` and `BRANCH_WHITELIST`, all environment variables
+shown in that example are required.

@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import re
 import os
 import sys
 import json
@@ -136,6 +137,12 @@ if conclusion == 'success':
 if conclusion == 'cancelled':
     skip('Skip processing cancelled check_suite')
 
+branch = check_suite['head_branch']
+whitelist = optenv('BRANCH_WHITELIST')
+
+if whitelist and not re.match(whitelist, branch):
+    skip(f"Skip processing branch '{branch}': does not match '{whitelist}'")
+
 check_runs_url = check_suite['check_runs_url']
 check_runs_response = api_request(check_runs_url)
 failed_check_urls = dict()
@@ -163,7 +170,6 @@ print(f'Sending email for failed check_suite "{ci_app_name}"...')
 
 repo_name = repo['name']
 repo_url = repo['html_url']
-branch = check_suite['head_branch']
 sha = check_suite['head_sha']
 short_sha = sha[:8]
 commit_url = f'{repo_url}/commit/{sha}'
