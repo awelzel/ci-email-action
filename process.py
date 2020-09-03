@@ -137,6 +137,9 @@ if conclusion == 'success':
 if conclusion == 'cancelled':
     skip('Skip processing cancelled check_suite')
 
+if conclusion == 'neutral':
+    skip('Skip processing neutral check_suite')
+
 branch = check_suite['head_branch']
 whitelist = optenv('BRANCH_WHITELIST')
 
