@@ -129,27 +129,25 @@ if pull_requests:
 if not check_suite['head_branch']:
     skip('Skip processing check_suite triggered via Pull Request (from fork)')
 
+# Skip conclusions that aren't interesting.
+skip_conclusions_env = optenv('SKIP_CONCLUSIONS') or 'success,cancelled,neutral'
+skip_conclusions = skip_conclusions_env.replace(',', ' ').split()
+
 conclusion = check_suite['conclusion']
-
-if conclusion == 'success':
-    skip('Skip processing successful check_suite')
-
-if conclusion == 'cancelled':
-    skip('Skip processing cancelled check_suite')
-
-if conclusion == 'neutral':
-    skip('Skip processing neutral check_suite')
+if conclusion in skip_conclusions:
+    skip(f'Skip processing {conclusion} check_suite')
 
 branch = check_suite['head_branch']
-whitelist = optenv('BRANCH_WHITELIST')
 
-if whitelist and not re.match(whitelist, branch):
-    skip(f"Skip processing branch '{branch}': does not match '{whitelist}'")
+branch_regex = optenv('BRANCH_REGEX') or optenv('BRANCH_WHITELIST')
+if branch_regex and not re.match(branch_regex, branch):
+    skip(f"Skip processing branch '{branch}': does not match '{branch_regex}'")
 
 check_runs_url = check_suite['check_runs_url']
 check_runs_response = api_request(check_runs_url)
 failed_check_urls = dict()
 
+successful_checks = 0
 if check_runs_response.status_code == 200:
     try:
         json = check_runs_response.json()
@@ -160,6 +158,7 @@ if check_runs_response.status_code == 200:
                 continue
 
             if run['conclusion'] == 'success':
+                successful_checks += 1
                 continue
 
             failed_check_urls[run['name']] = run['html_url']
@@ -169,7 +168,7 @@ if check_runs_response.status_code == 200:
         traceback.print_exc()
         print('Skip processing check_runs: failed to parse response')
 
-print(f'Sending email for failed check_suite "{ci_app_name}"...')
+print(f'Sending email for {conclusion} check_suite "{ci_app_name}"...')
 
 repo_name = repo['name']
 repo_url = repo['html_url']
@@ -178,7 +177,7 @@ short_sha = sha[:8]
 commit_url = f'{repo_url}/commit/{sha}'
 commit_msg = check_suite['head_commit']['message']
 
-subject = f'[ci/{repo_name}] {ci_app_name}: Failed ({branch} - {short_sha})'
+subject = f'[ci/{repo_name}] {ci_app_name}: {conclusion.capitalize()} ({branch} - {short_sha})'
 body = f'''
 {ci_app_name} conclusion: {conclusion}
 repo: {repo_url}
@@ -186,12 +185,12 @@ branch: {branch}
 commit: {commit_url}
 message: {commit_msg}
 
+successful: {successful_checks}
 '''
 
 if failed_check_urls:
-    body += 'failures:\n'
-
-for name, url in failed_check_urls.items():
-    body += f'    {name}: {url}\n'
+    body += f'failures: {len(failed_check_urls)}\n'
+    for name, url in failed_check_urls.items():
+        body += f'    {name}: {url}\n'
 
 send_mail(subject, body)
