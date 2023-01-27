@@ -88,109 +88,114 @@ def api_request(request_url):
     response = requests.get(request_url, headers=headers)
     return response
 
-check_env('GITHUB_EVENT_PATH',
-          'GITHUB_TOKEN',
-          'CI_APP_NAME',
-          'SMTP_HOST',
-          'SMTP_PORT',
-          'SMTP_USER',
-          'SMTP_PASS',
-          'MAIL_FROM',
-          'MAIL_TO'
-          )
 
-ci_app_name = getenv('CI_APP_NAME')
-event_payload_path = getenv('GITHUB_EVENT_PATH')
+def main():
+    check_env('GITHUB_EVENT_PATH',
+              'GITHUB_TOKEN',
+              'CI_APP_NAME',
+              'SMTP_HOST',
+              'SMTP_PORT',
+              'SMTP_USER',
+              'SMTP_PASS',
+              'MAIL_FROM',
+              'MAIL_TO'
+              )
 
-with open(event_payload_path) as epp:
-    payload = json.load(epp)
+    ci_app_name = getenv('CI_APP_NAME')
+    event_payload_path = getenv('GITHUB_EVENT_PATH')
 
-if 'check_suite' not in payload:
-    skip('Skip processing non-check_suite action')
+    with open(event_payload_path) as epp:
+        payload = json.load(epp)
 
-if payload['action'] != 'completed':
-    skip(f"Skip processing check_suite action type: {payload['action']}")
+    if 'check_suite' not in payload:
+        skip('Skip processing non-check_suite action')
 
-check_suite = payload['check_suite']
-repo = payload['repository']
-app = check_suite['app']
+    if payload['action'] != 'completed':
+        skip(f"Skip processing check_suite action type: {payload['action']}")
 
-if app['name'] != ci_app_name:
-    skip(f"Skip processing check_suite for app: {app['name']}")
+    check_suite = payload['check_suite']
+    repo = payload['repository']
+    app = check_suite['app']
 
-pull_requests = check_suite['pull_requests']
+    if app['name'] != ci_app_name:
+        skip(f"Skip processing check_suite for app: {app['name']}")
 
-if pull_requests:
-    skip('Skip processing check_suite triggered via Pull Request')
+    pull_requests = check_suite['pull_requests']
 
-# Docs at https://developer.github.com/v3/checks/suites/ seem to indicate
-# that 'pull_requests' will also be empty for checks that run on PRs coming
-# from forked repos.  But in that case, 'head_branch' is null.
-if not check_suite['head_branch']:
-    skip('Skip processing check_suite triggered via Pull Request (from fork)')
+    if pull_requests:
+        skip('Skip processing check_suite triggered via Pull Request')
 
-# Skip conclusions that aren't interesting.
-skip_conclusions_env = optenv('SKIP_CONCLUSIONS') or 'success,cancelled,neutral'
-skip_conclusions = skip_conclusions_env.replace(',', ' ').split()
+    # Docs at https://developer.github.com/v3/checks/suites/ seem to indicate
+    # that 'pull_requests' will also be empty for checks that run on PRs coming
+    # from forked repos.  But in that case, 'head_branch' is null.
+    if not check_suite['head_branch']:
+        skip('Skip processing check_suite triggered via Pull Request (from fork)')
 
-conclusion = check_suite['conclusion']
-if conclusion in skip_conclusions:
-    skip(f'Skip processing {conclusion} check_suite')
+    # Skip conclusions that aren't interesting.
+    skip_conclusions_env = optenv('SKIP_CONCLUSIONS') or 'success,cancelled,neutral'
+    skip_conclusions = skip_conclusions_env.replace(',', ' ').split()
 
-branch = check_suite['head_branch']
+    conclusion = check_suite['conclusion']
+    if conclusion in skip_conclusions:
+        skip(f'Skip processing {conclusion} check_suite')
 
-branch_regex = optenv('BRANCH_REGEX') or optenv('BRANCH_WHITELIST')
-if branch_regex and not re.match(branch_regex, branch):
-    skip(f"Skip processing branch '{branch}': does not match '{branch_regex}'")
+    branch = check_suite['head_branch']
 
-check_runs_url = check_suite['check_runs_url']
-check_runs_response = api_request(check_runs_url)
-failed_check_urls = dict()
+    branch_regex = optenv('BRANCH_REGEX') or optenv('BRANCH_WHITELIST')
+    if branch_regex and not re.match(branch_regex, branch):
+        skip(f"Skip processing branch '{branch}': does not match '{branch_regex}'")
 
-successful_checks = 0
-if check_runs_response.status_code == 200:
-    try:
-        json = check_runs_response.json()
-        runs = json['check_runs']
+    check_runs_url = check_suite['check_runs_url']
+    check_runs_response = api_request(check_runs_url)
+    failed_check_urls = dict()
 
-        for run in runs:
-            if run['app']['name'] != ci_app_name:
-                continue
+    successful_checks = 0
+    if check_runs_response.status_code == 200:
+        try:
+            json = check_runs_response.json()
+            runs = json['check_runs']
 
-            if run['conclusion'] == 'success':
-                successful_checks += 1
-                continue
+            for run in runs:
+                if run['app']['name'] != ci_app_name:
+                    continue
 
-            failed_check_urls[run['name']] = run['html_url']
+                if run['conclusion'] == 'success':
+                    successful_checks += 1
+                    continue
 
-    except:
-        import traceback
-        traceback.print_exc()
-        print('Skip processing check_runs: failed to parse response')
+                failed_check_urls[run['name']] = run['html_url']
 
-print(f'Sending email for {conclusion} check_suite "{ci_app_name}"...')
+        except:
+            import traceback
+            traceback.print_exc()
+            print('Skip processing check_runs: failed to parse response')
 
-repo_name = repo['name']
-repo_url = repo['html_url']
-sha = check_suite['head_sha']
-short_sha = sha[:8]
-commit_url = f'{repo_url}/commit/{sha}'
-commit_msg = check_suite['head_commit']['message']
+    print(f'Sending email for {conclusion} check_suite "{ci_app_name}"...')
 
-subject = f'[ci/{repo_name}] {ci_app_name}: {conclusion.capitalize()} ({branch} - {short_sha})'
-body = f'''
-{ci_app_name} conclusion: {conclusion}
-repo: {repo_url}
-branch: {branch}
-commit: {commit_url}
-message: {commit_msg}
+    repo_name = repo['name']
+    repo_url = repo['html_url']
+    sha = check_suite['head_sha']
+    short_sha = sha[:8]
+    commit_url = f'{repo_url}/commit/{sha}'
+    commit_msg = check_suite['head_commit']['message']
 
-successful: {successful_checks}
-'''
+    subject = f'[ci/{repo_name}] {ci_app_name}: {conclusion.capitalize()} ({branch} - {short_sha})'
+    body = f'''
+    {ci_app_name} conclusion: {conclusion}
+    repo: {repo_url}
+    branch: {branch}
+    commit: {commit_url}
+    message: {commit_msg}
 
-if failed_check_urls:
-    body += f'failures: {len(failed_check_urls)}\n'
-    for name, url in failed_check_urls.items():
-        body += f'    {name}: {url}\n'
+    successful: {successful_checks}
+    '''
 
-send_mail(subject, body)
+    if failed_check_urls:
+        body += f'failures: {len(failed_check_urls)}\n'
+        for name, url in failed_check_urls.items():
+            body += f'    {name}: {url}\n'
+
+    send_mail(subject, body)
+
+if __name__ == '__main__':
+    main()
