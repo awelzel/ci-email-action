@@ -44,7 +44,7 @@ def check_env(*keys):
         # print(f'Found usable environment variable: {k}')
 
     if err:
-        fatal(f'Error: required environment variables are not available')
+        fatal('Error: required environment variables are not available')
 
 def send_mail(subj, body):
     import smtplib
@@ -56,7 +56,7 @@ def send_mail(subj, body):
     smtp_user = getenv('SMTP_USER')
     smtp_pass = getenv('SMTP_PASS')
     mail_from = getenv('MAIL_FROM')
-    mail_to   = getenv('MAIL_TO')
+    mail_to = getenv('MAIL_TO')
     mail_reply_to = optenv('MAIL_REPLY_TO')
 
     msg = MIMEText(body)
@@ -122,8 +122,14 @@ def main():
 
     pull_requests = check_suite['pull_requests']
 
+    # Skip notification if there are any pull_requests open that related
+    # to *this* repository. pull_requests may contain PRs from forks if
+    # they reference our own master (fork:master <- upstream:master) PRs.
     if pull_requests:
-        skip('Skip processing check_suite triggered via Pull Request')
+        for pr in pull_requests:
+            base_repo_id = pr.get("base", {}).get("repo").get("id", -1)
+            if base_repo_id == repo.get("id", -1):
+                skip('Skip processing check_suite triggered via Pull Request')
 
     # Docs at https://developer.github.com/v3/checks/suites/ seem to indicate
     # that 'pull_requests' will also be empty for checks that run on PRs coming
@@ -152,8 +158,8 @@ def main():
     successful_checks = 0
     if check_runs_response.status_code == 200:
         try:
-            json = check_runs_response.json()
-            runs = json['check_runs']
+            json_data = check_runs_response.json()
+            runs = json_data['check_runs']
 
             for run in runs:
                 if run['app']['name'] != ci_app_name:
@@ -165,13 +171,12 @@ def main():
 
                 failed_check_urls[run['name']] = run['html_url']
 
-        except:
+        except:  # noqa
             import traceback
             traceback.print_exc()
-            print('Skip processing check_runs: failed to parse response')
+            fatal('Skip processing check_runs: failed to parse response')
 
     print(f'Sending email for {conclusion} check_suite "{ci_app_name}"...')
-
     repo_name = repo['name']
     repo_url = repo['html_url']
     sha = check_suite['head_sha']
@@ -196,6 +201,7 @@ def main():
             body += f'    {name}: {url}\n'
 
     send_mail(subject, body)
+
 
 if __name__ == '__main__':
     main()
